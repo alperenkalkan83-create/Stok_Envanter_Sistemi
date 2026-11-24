@@ -58,4 +58,46 @@ class InventoryTests(unittest.TestCase):
         app.update_stock(dict(product_id=p,quantity=11,operation='in'))
         self.assertEqual(app.list_products()[0]['stock_status'],'ok')
 
+    def test_update_product(self):
+        p=app.add_product(self.data)
+        app.update_product(dict(self.data,product_id=p,code='B2',name='Yeni',category='Ofis',price='20.50',stock=99))
+        row=app.list_products()[0]
+        self.assertEqual((row['code'],row['name'],row['category'],row['price_cents'],row['stock']),('B2','Yeni','Ofis',2050,3))
+    def test_update_same_code(self):
+        p=app.add_product(self.data)
+        app.update_product(dict(self.data,product_id=p,name='Yeni'))
+        self.assertEqual(app.list_products()[0]['name'],'Yeni')
+    def test_update_duplicate(self):
+        p=app.add_product(self.data)
+        app.add_product(dict(self.data,code='B2'))
+        with self.assertRaises(ValueError): app.update_product(dict(self.data,product_id=p,code='b2'))
+    def test_update_invalid_price(self):
+        p=app.add_product(self.data)
+        with self.assertRaises(ValueError): app.update_product(dict(self.data,product_id=p,price='-1'))
+    def test_update_missing(self):
+        with self.assertRaises(ValueError): app.update_product(dict(self.data,product_id=999))
+    def test_update_blank_name(self):
+        p=app.add_product(self.data)
+        with self.assertRaises(ValueError): app.update_product(dict(self.data,product_id=p,name=' '))
+
+    def test_delete_product(self):
+        p=app.add_product(self.data)
+        self.assertEqual(app.delete_product(dict(product_id=p)),p)
+        self.assertEqual(app.list_products(),[])
+    def test_delete_preserves_other_product(self):
+        p=app.add_product(self.data)
+        q=app.add_product(dict(self.data,code='B2'))
+        app.delete_product(dict(product_id=p))
+        self.assertEqual([r['id'] for r in app.list_products()],[q])
+    def test_delete_missing(self):
+        with self.assertRaises(ValueError): app.delete_product(dict(product_id=999))
+    def test_delete_invalid(self):
+        for value in (None,True,0,-1,'1',2**63):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError): app.delete_product(dict(product_id=value))
+    def test_delete_twice(self):
+        p=app.add_product(self.data)
+        app.delete_product(dict(product_id=p))
+        with self.assertRaises(ValueError): app.delete_product(dict(product_id=p))
+
 if __name__=='__main__': unittest.main()
