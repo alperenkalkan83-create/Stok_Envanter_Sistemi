@@ -16,7 +16,7 @@ def connect():
     c.execute('CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, category TEXT NOT NULL, price_cents INTEGER NOT NULL CHECK(price_cents>=0), stock INTEGER NOT NULL CHECK(stock>=0))')
     return c
 
-def add_product(data):
+def validate_product(data):
     if not isinstance(data, dict):
         raise ValueError('Geçersiz veri.')
     code, name, category = [data.get(k, '').strip() if isinstance(data.get(k), str) else '' for k in ('code', 'name', 'category')]
@@ -24,17 +24,37 @@ def add_product(data):
         raise ValueError('Ürün bilgilerini eksiksiz girin (en fazla 120 karakter).')
     try:
         price = Decimal(str(data.get('price')))
-        stock = data.get('stock')
-        if not price.is_finite() or price < 0 or price > LIMIT or price * 100 != (price * 100).to_integral_value() or type(stock) is not int or not 0 <= stock <= LIMIT:
+        if not price.is_finite() or price < 0 or price > LIMIT or price * 100 != (price * 100).to_integral_value():
             raise ValueError()
     except (InvalidOperation, ValueError):
-        raise ValueError('Fiyat en fazla iki ondalıklı, stok ise negatif olmayan tam sayı olmalıdır.')
+        raise ValueError('Fiyat negatif olmayan ve en fazla iki ondalıklı sayı olmalıdır.')
+    return code.upper(), name, category, int(price*100)
+
+def add_product(data):
+    code, name, category, price_cents = validate_product(data)
+    stock = data.get("stock")
+    if type(stock) is not int or not 0 <= stock <= LIMIT:
+        raise ValueError("Geçersiz stok miktarı.")
     try:
         with closing(connect()) as c, c:
-            cur = c.execute('INSERT INTO products(code,name,category,price_cents,stock) VALUES(?,?,?,?,?)', (code.upper(), name, category, int(price*100), stock))
+            cur = c.execute('INSERT INTO products(code,name,category,price_cents,stock) VALUES(?,?,?,?,?)', (code, name, category, price_cents, stock))
             return cur.lastrowid
     except sqlite3.IntegrityError:
         raise ValueError('Ürün kodu zaten kayıtlı.')
+
+def update_product(data):
+    code, name, category, price_cents = validate_product(data)
+    product_id = data.get('product_id')
+    if type(product_id) is not int or not 0 < product_id <= 2**63-1:
+        raise ValueError('Geçersiz ürün.')
+    try:
+        with closing(connect()) as c, c:
+            cur = c.execute('UPDATE products SET code=?, name=?, category=?, price_cents=? WHERE id=?', (code, name, category, price_cents, product_id))
+            if cur.rowcount != 1:
+                raise ValueError('Ürün bulunamadı.')
+    except sqlite3.IntegrityError:
+        raise ValueError('Ürün kodu zaten kayıtlı.')
+    return product_id
 
 def list_products():
     with closing(connect()) as c, c:
@@ -88,7 +108,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send(200, (ROOT/'static'/f).read_bytes(), t+'; charset=utf-8')
 
     def do_POST(self):
-        if self.path not in ('/api/products', '/api/stock'):
+        if self.path not in ('/api/products', '/api/stock', '/api/products/update'):
             return self.json(404, {'error': 'Bulunamadı'})
         try:
             n = int(self.headers.get('Content-Length', '0'))
@@ -97,6 +117,8 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(n))
             if self.path == '/api/products':
                 self.json(201, {'id': add_product(data)})
+            elif self.path == '/api/products/update':
+                self.json(200, {'id': update_product(data)})
             else:
                 self.json(200, {'stock': update_stock(data)})
         except (ValueError, UnicodeError) as e:
