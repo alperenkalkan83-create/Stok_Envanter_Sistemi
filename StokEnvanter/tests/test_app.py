@@ -43,4 +43,19 @@ class InventoryTests(unittest.TestCase):
     def test_product_not_found(self):
         with self.assertRaises(ValueError): app.update_stock(dict(product_id=999,quantity=5,operation='in'))
 
+    def test_stock_status_boundaries(self):
+        for stock, expected in ((0,'empty'),(1,'low'),(10,'low'),(11,'ok')):
+            with self.subTest(stock=stock):
+                product_id=app.add_product(dict(self.data,code=f'B{stock}',stock=stock))
+                product=next(p for p in app.list_products() if p['id']==product_id)
+                self.assertEqual(product['stock_status'],expected)
+    def test_stock_status_after_movement(self):
+        p=app.add_product(dict(self.data,stock=11))
+        app.update_stock(dict(product_id=p,quantity=1,operation='out'))
+        self.assertEqual(app.list_products()[0]['stock_status'],'low')
+        app.update_stock(dict(product_id=p,quantity=10,operation='out'))
+        self.assertEqual(app.list_products()[0]['stock_status'],'empty')
+        app.update_stock(dict(product_id=p,quantity=11,operation='in'))
+        self.assertEqual(app.list_products()[0]['stock_status'],'ok')
+
 if __name__=='__main__': unittest.main()

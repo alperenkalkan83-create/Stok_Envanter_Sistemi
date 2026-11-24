@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 ROOT = Path(__file__).resolve().parent
 DB = ROOT / 'inventory.db'
 LIMIT = 100000000
+LOW_STOCK_LIMIT = 10
 
 def connect():
     c = sqlite3.connect(DB)
@@ -37,7 +38,10 @@ def add_product(data):
 
 def list_products():
     with closing(connect()) as c, c:
-        return [dict(r) for r in c.execute('SELECT * FROM products ORDER BY id DESC')]
+        products = [dict(r) for r in c.execute('SELECT * FROM products ORDER BY id DESC')]
+        for product in products:
+            product['stock_status'] = 'empty' if product['stock'] == 0 else 'low' if product['stock'] <= LOW_STOCK_LIMIT else 'ok'
+        return products
 
 def update_stock(data):
     if not isinstance(data, dict):
