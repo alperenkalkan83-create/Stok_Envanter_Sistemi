@@ -100,4 +100,35 @@ class InventoryTests(unittest.TestCase):
         app.delete_product(dict(product_id=p))
         with self.assertRaises(ValueError): app.delete_product(dict(product_id=p))
 
+class FilterTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.old = app.DB
+        app.DB = Path(self.tmp.name) / 'filter.db'
+        self.addCleanup(self.tmp.cleanup)
+        self.addCleanup(setattr, app, 'DB', self.old)
+        for code, name, category, stock in [('A1','Fare','Elektronik',20),('B2','Kalem','Ofis',5),('C3','Klavye','Elektronik',0)]:
+            app.add_product(dict(code=code,name=name,category=category,stock=stock,price='10'))
+        self.products = app.list_products()
+
+    def test_search_name(self):
+        self.assertEqual([p["code"] for p in app.filter_products(self.products, search='fare')], ['A1'])
+    def test_search_code(self):
+        self.assertEqual([p["code"] for p in app.filter_products(self.products, search='b2')], ['B2'])
+    def test_category(self):
+        self.assertEqual([p["code"] for p in app.filter_products(self.products, category='Elektronik')], ['C3', 'A1'])
+    def test_low_stock(self):
+        self.assertEqual([p["code"] for p in app.filter_products(self.products, status='low')], ['B2'])
+    def test_empty_stock(self):
+        self.assertEqual([p["code"] for p in app.filter_products(self.products, status='empty')], ['C3'])
+    def test_combined(self):
+        self.assertEqual([p["code"] for p in app.filter_products(self.products, category='Elektronik', status='ok')], ['A1'])
+    def test_no_results(self):
+        self.assertEqual([p["code"] for p in app.filter_products(self.products, search='olmayan')], [])
+    def test_clear(self):
+        self.assertEqual([p["code"] for p in app.filter_products(self.products)], ['C3', 'B2', 'A1'])
+    def test_invalid_status(self):
+        with self.assertRaises(ValueError):
+            app.filter_products(self.products, status='invalid')
+
 if __name__=='__main__': unittest.main()

@@ -51,12 +51,26 @@ async function deleteProduct(p) {
     } catch(err) { alert(err.message); }
     finally { changing = false; }
 }
+let loadVersion = 0;
 async function load() {
+    const version = ++loadVersion;
     const r = await fetch('/api/products');
     if (!r.ok) throw Error('Liste alınamadı.');
     const data = await r.json();
+    if (version !== loadVersion) return;
+    const select = $('category-filter');
+    const selected = select.value;
+    const categories = [...new Set(data.map(p => p.category))].sort((a,b) => a.localeCompare(b,'tr'));
+    select.replaceChildren(new Option('Tüm kategoriler',''));
+    for (const category of categories) select.add(new Option(category,category));
+    if (categories.includes(selected)) select.value = selected;
+    const params = new URLSearchParams({search:$('search').value, category:select.value, status:$('status-filter').value});
+    const response = await fetch('/api/products?' + params);
+    if (!response.ok) throw Error('Filtreleme başarısız.');
+    const filtered = await response.json();
+    if (version !== loadVersion) return;
     $('rows').replaceChildren();
-    for (const p of data) {
+    for (const p of filtered) {
         const tr = document.createElement('tr');
         for (const v of [p.code,p.name,p.category,money(p.price_cents),p.stock]) {
             const td = document.createElement('td'); td.textContent = v; tr.append(td);
@@ -81,7 +95,8 @@ async function load() {
         del.onclick=()=>deleteProduct(p); actions.append(del);
         tr.append(actions); $('rows').append(tr);
     }
-    $('empty').textContent = data.length ? '' : 'Henüz ürün kaydı yok.';
+    $('empty').textContent = filtered.length ? '' : data.length ? 'Arama kriterlerine uygun ürün bulunamadı.' : 'Henüz ürün kaydı yok.';
+    $('result-count').textContent = `${data.length} üründen ${filtered.length} tanesi gösteriliyor.`;
     $('count').textContent = data.length;
     $('low-count').textContent = data.filter(p => p.stock_status === 'low' || p.stock_status === 'empty').length;
     $('stock').textContent = data.reduce((s,p)=>s+p.stock,0);
@@ -97,4 +112,18 @@ $('form').addEventListener('submit',async e=>{
         try {await load();} catch { $('message').textContent='Ürün kaydedildi ancak liste yenilenemedi.'; }
     } catch(err){$('message').textContent=err.message;} finally{b.disabled=false;}
 });
-load().catch(e=>$('message').textContent=e.message);
+function refreshProducts() { load().catch(e => $('message').textContent = e.message); }
+let searchTimer;
+$('search').addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(refreshProducts, 250);
+});
+$('category-filter').addEventListener('change', refreshProducts);
+$('status-filter').addEventListener('change', refreshProducts);
+$('clear-filters').addEventListener('click', () => {
+    $('search').value = '';
+    $('category-filter').value = '';
+    $('status-filter').value = '';
+    refreshProducts();
+});
+refreshProducts();

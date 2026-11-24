@@ -1,3 +1,4 @@
+from urllib.parse import urlsplit, parse_qs
 import json
 import sqlite3
 from contextlib import closing
@@ -75,6 +76,16 @@ def list_products():
             product['stock_status'] = 'empty' if product['stock'] == 0 else 'low' if product['stock'] <= LOW_STOCK_LIMIT else 'ok'
         return products
 
+def filter_products(products, search='', category='', status=''):
+    search = search.strip().casefold()
+    category = category.strip().casefold()
+    if status not in ('', 'empty', 'low', 'ok'):
+        raise ValueError('Geçersiz stok durumu.')
+    return [p for p in products
+            if (not search or search in p['name'].casefold() or search in p['code'].casefold())
+            and (not category or p['category'].casefold() == category)
+            and (not status or p['stock_status'] == status)]
+
 def update_stock(data):
     if not isinstance(data, dict):
         raise ValueError('Geçersiz veri.')
@@ -111,8 +122,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send(status, json.dumps(obj, ensure_ascii=False).encode())
 
     def do_GET(self):
-        if self.path == '/api/products':
-            return self.json(200, list_products())
+        url = urlsplit(self.path)
+        if url.path == '/api/products':
+            params = parse_qs(url.query)
+            try:
+                return self.json(200, filter_products(list_products(), **{
+                    k: params.get(k, [''])[0] for k in ('search', 'category', 'status')
+                }))
+            except ValueError as e:
+                return self.json(400, {'error': str(e)})
         files = {'/': ('index.html', 'text/html'), '/style.css': ('style.css', 'text/css'), '/app.js': ('app.js', 'text/javascript')}
         if self.path not in files:
             return self.json(404, {'error': 'Bulunamadı'})
