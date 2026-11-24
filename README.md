@@ -188,3 +188,34 @@ GitHub: [alperenkalkan83-create](https://github.com/alperenkalkan83-create)
 ---
 
 Stok ve Envanter Yönetim Sistemi
+## Proje Yönetim Panosu
+
+Projenin görevleri GitHub Projects üzerinden takip edilmiştir.
+
+[P roje Yönetim Panosu](https://github.com/users/alperenkalkan83-create/projects/2)
+
+## Özelliklerin Denenmesi
+
+### Özellik 1: Stok Giriş ve Çıkış
+
+1. Uygulamayı çalıştırın.
+2. Başlangıç stok miktarı 10 olan bir ürün ekleyin.
+3. Giriş butonuna basarak 5 adet stok ekleyin.
+4. Stok miktarının 15 olduğunu doğrulayın.
+5. Çıkış butonuna basarak 3 adet stok çıkarın.
+6. Stok miktarının 12 olduğunu doğrulayın.
+7. Mevcut stoktan fazla çıkış yapmayı deneyin.
+8. Yetersiz stok uyarısının gösterildiğini doğrulayın.
+
+### Özellik 2: Kritik Stok Uyarısı
+
+1. Stok miktarı 15 olan bir ürün oluşturun.
+2. Ürünün stok durumunun Yeterli olduğunu doğrulayın.
+3. 5 adet stok çıkışı yapın.
+4. Kritik stok uyarısının gösterildiğini doğrulayın.
+5. Kalan 10 adet stok için çıkış işlemi yapın.
+6. Stok tükendi uyarısının gösterildiğini doğrulayın.
+
+## Sürüm
+
+[Release v1.0.0](https://github.com/alperenkalkan83-create/Stok_Envanter_Sistemi/releases/tag/v1.0.0)
