@@ -30,6 +30,12 @@ async function load() {
         for (const v of [p.code,p.name,p.category,money(p.price_cents),p.stock]) {
             const td = document.createElement('td'); td.textContent = v; tr.append(td);
         }
+        const status = document.createElement('td');
+        const labels = {empty:'Stok tükendi',low:'Kritik stok',ok:'Yeterli'};
+        status.textContent = labels[p.stock_status] || 'Bilinmiyor';
+        status.style.color = ({empty:'#b91c1c',low:'#92400e',ok:'#166534'})[p.stock_status] || '';
+        status.style.fontWeight = 'bold';
+        tr.append(status);
         const actions = document.createElement('td');
         for (const [operation,label] of [['in','+ Giriş'],['out','− Çıkış']]) {
             const b = document.createElement('button'); b.type='button'; b.textContent=label;
@@ -40,6 +46,7 @@ async function load() {
     }
     $('empty').textContent = data.length ? '' : 'Henüz ürün kaydı yok.';
     $('count').textContent = data.length;
+    $('low-count').textContent = data.filter(p => p.stock_status === 'low' || p.stock_status === 'empty').length;
     $('stock').textContent = data.reduce((s,p)=>s+p.stock,0);
     $('value').textContent = money(data.reduce((s,p)=>s+p.stock*p.price_cents,0));
 }
