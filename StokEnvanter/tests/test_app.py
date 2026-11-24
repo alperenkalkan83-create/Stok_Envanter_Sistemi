@@ -80,4 +80,24 @@ class InventoryTests(unittest.TestCase):
         p=app.add_product(self.data)
         with self.assertRaises(ValueError): app.update_product(dict(self.data,product_id=p,name=' '))
 
+    def test_delete_product(self):
+        p=app.add_product(self.data)
+        self.assertEqual(app.delete_product(dict(product_id=p)),p)
+        self.assertEqual(app.list_products(),[])
+    def test_delete_preserves_other_product(self):
+        p=app.add_product(self.data)
+        q=app.add_product(dict(self.data,code='B2'))
+        app.delete_product(dict(product_id=p))
+        self.assertEqual([r['id'] for r in app.list_products()],[q])
+    def test_delete_missing(self):
+        with self.assertRaises(ValueError): app.delete_product(dict(product_id=999))
+    def test_delete_invalid(self):
+        for value in (None,True,0,-1,'1',2**63):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError): app.delete_product(dict(product_id=value))
+    def test_delete_twice(self):
+        p=app.add_product(self.data)
+        app.delete_product(dict(product_id=p))
+        with self.assertRaises(ValueError): app.delete_product(dict(product_id=p))
+
 if __name__=='__main__': unittest.main()

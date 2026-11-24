@@ -56,6 +56,18 @@ def update_product(data):
         raise ValueError('Ürün kodu zaten kayıtlı.')
     return product_id
 
+def delete_product(data):
+    if not isinstance(data, dict):
+        raise ValueError('Geçersiz veri.')
+    product_id = data.get('product_id')
+    if type(product_id) is not int or not 0 < product_id <= 2**63-1:
+        raise ValueError('Geçersiz ürün.')
+    with closing(connect()) as c, c:
+        cur = c.execute('DELETE FROM products WHERE id=?', (product_id,))
+        if cur.rowcount != 1:
+            raise ValueError('Ürün bulunamadı.')
+    return product_id
+
 def list_products():
     with closing(connect()) as c, c:
         products = [dict(r) for r in c.execute('SELECT * FROM products ORDER BY id DESC')]
@@ -108,7 +120,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send(200, (ROOT/'static'/f).read_bytes(), t+'; charset=utf-8')
 
     def do_POST(self):
-        if self.path not in ('/api/products', '/api/stock', '/api/products/update'):
+        if self.path not in ('/api/products', '/api/stock', '/api/products/update', '/api/products/delete'):
             return self.json(404, {'error': 'Bulunamadı'})
         try:
             n = int(self.headers.get('Content-Length', '0'))
@@ -119,6 +131,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.json(201, {'id': add_product(data)})
             elif self.path == '/api/products/update':
                 self.json(200, {'id': update_product(data)})
+            elif self.path == '/api/products/delete':
+                self.json(200, {'id': delete_product(data)})
             else:
                 self.json(200, {'stock': update_stock(data)})
         except (ValueError, UnicodeError) as e:

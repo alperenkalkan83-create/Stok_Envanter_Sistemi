@@ -38,6 +38,19 @@ async function editProduct(p) {
     } catch(err) { alert(err.message); }
     finally { changing = false; }
 }
+async function deleteProduct(p) {
+    if (changing) return;
+    if (!confirm(`${p.code} - ${p.name} ürünü (${p.stock} adet stok) kalıcı olarak silinsin mi?`)) return;
+    changing = true;
+    try {
+        const r = await fetch('/api/products/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product_id:p.id})});
+        const result = await r.json();
+        if (!r.ok) throw Error(result.error);
+        try { await load(); alert('Ürün silindi.'); }
+        catch { alert('Ürün silindi ancak liste yenilenemedi.'); }
+    } catch(err) { alert(err.message); }
+    finally { changing = false; }
+}
 async function load() {
     const r = await fetch('/api/products');
     if (!r.ok) throw Error('Liste alınamadı.');
@@ -63,6 +76,9 @@ async function load() {
         const edit = document.createElement('button');
         edit.type='button'; edit.textContent='Düzenle'; edit.style.backgroundColor='#2563eb';
         edit.onclick=()=>editProduct(p); actions.append(edit);
+        const del = document.createElement('button');
+        del.type='button'; del.textContent='Sil'; del.style.backgroundColor='#991b1b';
+        del.onclick=()=>deleteProduct(p); actions.append(del);
         tr.append(actions); $('rows').append(tr);
     }
     $('empty').textContent = data.length ? '' : 'Henüz ürün kaydı yok.';
